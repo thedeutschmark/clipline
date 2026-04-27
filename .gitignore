@@ -67,5 +67,6 @@ output/*
 # Claude/AI
 .claude/
 
-# PyInstaller
-*.spec
+# PyInstaller build output (spec files are source — kept tracked).
+build/
+dist/
