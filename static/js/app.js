@@ -805,38 +805,6 @@ const App = (() => {
             if (!busy) pyannoteInstallBtn.textContent = "Install pyannote.audio (1-click)";
         }
 
-        // Film Lab dependencies
-        const film = deps.film || {};
-        const filmInstallState = deps.film_install || {};
-        const filmMissing = film.required_missing || [];
-        const rawpyStatus = $("dep-rawpy-status");
-        const numpyStatus = $("dep-numpy-status");
-        if (rawpyStatus) {
-            if (film.rawpy?.installed) {
-                rawpyStatus.textContent = `✓ ${film.rawpy.version || "installed"}`;
-                rawpyStatus.className = "dep-status installed";
-            } else {
-                rawpyStatus.textContent = "✗ Needed";
-                rawpyStatus.className = "dep-status missing";
-            }
-        }
-        if (numpyStatus) {
-            if (film.numpy?.installed) {
-                numpyStatus.textContent = `✓ ${film.numpy.version || "installed"}`;
-                numpyStatus.className = "dep-status installed";
-            } else {
-                numpyStatus.textContent = "✗ Needed";
-                numpyStatus.className = "dep-status missing";
-            }
-        }
-        const filmInstallBtn = $("install-film-deps-btn");
-        if (filmInstallBtn) {
-            const busy = filmInstallState.status === "installing";
-            filmInstallBtn.classList.toggle("hidden", filmMissing.length === 0);
-            filmInstallBtn.disabled = busy;
-            filmInstallBtn.textContent = busy ? "Installing..." : "Install Film Lab deps (1-click)";
-        }
-
         const depPillValue = $("dependency-pill-value");
         if (depPillValue) {
             if (deps.bootstrap?.status === "installing") {
@@ -845,12 +813,8 @@ const App = (() => {
                 depPillValue.textContent = "Updating yt-dlp...";
             } else if (captionInstallState.status === "installing") {
                 depPillValue.textContent = "Installing captions...";
-            } else if (filmInstallState.status === "installing") {
-                depPillValue.textContent = "Installing Film Lab...";
             } else if (missing.length === 0) {
-                depPillValue.textContent = captionRequiredMissing.length > 0 ? "Captions Need Setup"
-                    : filmMissing.length > 0 ? "Film Lab Needs Setup"
-                    : "Ready";
+                depPillValue.textContent = captionRequiredMissing.length > 0 ? "Captions Need Setup" : "Ready";
             } else {
                 depPillValue.textContent = `Needs Setup (${missing.length})`;
             }
@@ -1090,59 +1054,6 @@ const App = (() => {
         } finally {
             captioningInstallInFlight = false;
             setCaptionInstallButtonState(includePyannote, false);
-        }
-    }
-
-    let filmInstallInFlight = false;
-
-    async function installFilmDeps() {
-        if (filmInstallInFlight) return;
-        filmInstallInFlight = true;
-        const btn = $("install-film-deps-btn");
-        if (btn) { btn.disabled = true; btn.textContent = "Installing..."; }
-
-        setDependencyBanner(
-            "<strong>Installing Film Lab dependencies...</strong>",
-            "Installing rawpy and numpy via pip. This should only take a moment.",
-            false
-        );
-
-        try {
-            let deps = await api("/api/install-film-deps", { method: "POST" });
-            renderDependencyStatus(deps);
-
-            // Poll if still installing
-            let attempts = 0;
-            while ((deps?.film_install?.status || "idle") === "installing" && attempts < 30) {
-                attempts++;
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-                deps = await api("/api/check-deps");
-                renderDependencyStatus(deps);
-            }
-
-            const state = deps?.film_install || {};
-            if (state.status === "failed") {
-                setDependencyBanner(
-                    "<strong>Film Lab install failed.</strong>",
-                    escapeHtml(state.last_error || "Check internet access and retry."),
-                    true
-                );
-            } else {
-                setDependencyBanner(
-                    "<strong>Film Lab dependencies installed.</strong>",
-                    escapeHtml(state.message || "rawpy and numpy are ready."),
-                    false,
-                    6000
-                );
-            }
-        } catch (e) {
-            setDependencyBanner(
-                "<strong>Film Lab install failed.</strong>",
-                "Check your internet connection and try again.",
-                true
-            );
-        } finally {
-            filmInstallInFlight = false;
         }
     }
 
@@ -2985,7 +2896,6 @@ const App = (() => {
         installMissingDependencies,
         updateYtdlp,
         installCaptioningDeps,
-        installFilmDeps,
         onboardingNext,
         onboardingBack,
         skipOnboarding,
