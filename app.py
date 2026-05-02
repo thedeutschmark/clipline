@@ -194,8 +194,14 @@ def _proxy_shared_auth_request(path, method="GET"):
             "details": str(getattr(exc, "reason", exc) or exc),
         }), 502
 
-# In-memory job status tracking
+# In-memory job status tracking. Mutated from worker threads in reel.py and
+# captions.py; read by the /api/status route in a Flask thread. Single-statement
+# dict assignment is atomic under CPython's GIL, so direct `jobs[id] = {...}`
+# writes are safe without a lock. The check-then-read pattern that USED to live
+# in /api/status was the only race; it now uses jobs.get() instead. The lock
+# is here for any future read-modify-write patterns to opt into.
 jobs = {}
+_jobs_lock = threading.Lock()
 
 
 # ── Tool discovery ──────────────────────────────────────────────
@@ -1568,9 +1574,10 @@ def download_separate_audio(job_dir, audio_url, audio_start_sec=None, audio_end_
 def job_status(job_id):
     if not is_safe_job_id(job_id):
         return jsonify({"error": "Invalid job_id"}), 400
-    if job_id not in jobs:
+    snapshot = jobs.get(job_id)
+    if snapshot is None:
         return jsonify({"status": "unknown"}), 404
-    return jsonify(jobs[job_id])
+    return jsonify(snapshot)
 
 
 @app.route("/api/health")
