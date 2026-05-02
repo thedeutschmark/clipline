@@ -1573,61 +1573,6 @@ def job_status(job_id):
     return jsonify(jobs[job_id])
 
 
-@app.route("/api/waveform/<job_id>")
-def get_waveform(job_id):
-    if not is_safe_job_id(job_id):
-        return jsonify({"error": "Invalid job_id"}), 400
-    job_dir = DOWNLOADS_DIR / job_id
-    files = list(job_dir.glob("clip.*"))
-    if not files:
-        return jsonify({"error": "No clip found"}), 404
-    input_file = str(files[0])
-    waveform_path = PROCESSING_DIR / f"{job_id}_waveform.png"
-    if not waveform_path.exists():
-        PROCESSING_DIR.mkdir(parents=True, exist_ok=True)
-        cmd = [
-            FFMPEG, "-y", "-i", input_file,
-            "-filter_complex", "showwavespic=s=1200x80:colors=#56a3ff|#3a7acc",
-            "-frames:v", "1", str(waveform_path),
-        ]
-        extra = {}
-        if platform.system() == "Windows":
-            extra["creationflags"] = subprocess.CREATE_NO_WINDOW
-        result = subprocess.run(cmd, capture_output=True, timeout=30, **extra)
-        if result.returncode != 0 or not waveform_path.exists():
-            return jsonify({"error": "Waveform generation failed"}), 500
-    return send_file(str(waveform_path), mimetype="image/png")
-
-
-@app.route("/api/download-result/<job_id>")
-def download_result(job_id):
-    if not is_safe_job_id(job_id):
-        return jsonify({"error": "Invalid job_id"}), 400
-    job = jobs.get(job_id)
-    if not job:
-        return jsonify({"error": "Unknown job id"}), 404
-    if job.get("status") != "complete":
-        return jsonify({"error": "Result is not ready yet"}), 409
-
-    filename = str(job.get("filename") or f"alert_{job_id}.mp4")
-    safe_filename = Path(filename).name
-    filepath = get_output_dir() / safe_filename
-    if not filepath.exists():
-        return jsonify({"error": "File not found"}), 404
-    return send_file(str(filepath), as_attachment=True, download_name=safe_filename)
-
-
-@app.route("/api/cleanup/<job_id>", methods=["POST"])
-def cleanup(job_id):
-    if not is_safe_job_id(job_id):
-        return jsonify({"error": "Invalid job_id"}), 400
-    import shutil
-    for d in [DOWNLOADS_DIR / job_id, PROCESSING_DIR / job_id]:
-        if d.exists():
-            shutil.rmtree(d, ignore_errors=True)
-    return jsonify({"status": "cleaned"})
-
-
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok"})

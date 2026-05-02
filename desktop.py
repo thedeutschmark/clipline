@@ -96,12 +96,6 @@ class DesktopWindow(QMainWindow):
         open_editor.triggered.connect(lambda: self._run_reel_action(step=1, status_message="Opened Video Editor workspace."))
         project_menu.addAction(open_editor)
 
-        open_alerts = QAction("Open Alert Creator", self)
-        open_alerts.setShortcut(QKeySequence("Ctrl+2"))
-        open_alerts.setStatusTip("Switch back to Alert Creator")
-        open_alerts.triggered.connect(lambda: self._switch_mode("alert"))
-        project_menu.addAction(open_alerts)
-
         project_menu.addSeparator()
 
         new_project = QAction("New Project", self)
@@ -198,7 +192,7 @@ class DesktopWindow(QMainWindow):
 
         exit_action = QAction("Exit", self)
         exit_action.setShortcut(QKeySequence("Ctrl+Q"))
-        exit_action.setStatusTip("Quit Alert! Alert!")
+        exit_action.setStatusTip("Quit Clipline")
         exit_action.triggered.connect(self.close)
         app_menu.addAction(exit_action)
 
@@ -530,9 +524,6 @@ class DesktopWindow(QMainWindow):
     def _zoom_reset(self):
         self.view.setZoomFactor(1.0)
 
-    def _switch_mode(self, mode):
-        self._run_app_script(f"if (typeof switchMode === 'function') switchMode('{mode}')")
-
     def _open_dep_settings(self):
         self._run_app_script(
             "if (typeof App !== 'undefined' && App.openSettingsPanel) App.openSettingsPanel('dependency-settings-panel');",
@@ -548,8 +539,8 @@ class DesktopWindow(QMainWindow):
     def _show_about(self):
         QMessageBox.about(
             self,
-            "About Alert! Alert!",
-            "<b>deutschmark's Alert! Alert!</b><br><br>"
+            "About Clipline",
+            "<b>deutschmark's Clipline</b><br><br>"
             "A desktop tool for streamers to quickly trim, crop, and export<br>"
             "short-form clips and reels from stream VODs.<br><br>"
             "Built with Flask + PySide6.",
